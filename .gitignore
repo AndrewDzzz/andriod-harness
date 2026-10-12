@@ -1,0 +1,28 @@
+# Device state and agent-authored local workspace
+work/
+session/
+agent-workspace/
+.env
+.env.*
+*.local.json
+voice-token
+*-token
+*.gguf
+*.apk
+*.aab
+
+# Generated output and Python/editor artifacts
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.coverage
+htmlcov/
+dist/
+build/
+*.egg-info/
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
