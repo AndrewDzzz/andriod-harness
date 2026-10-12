@@ -1,54 +1,51 @@
 # Android Harness
 
-一个供编程代理使用的 Android 操作框架：**观察页面 → 选择操作 → 执行 → 验证结果**。
-设计参考 [browser-harness](https://github.com/browser-use/browser-harness)，采用固定核心、预载函数和可编辑 helper 工作区。
+通过 Python 和 ADB 操作 Android 手机，为编程代理提供 **观察 → 操作 → 验证** 的工作流程。
 
-[English](README.md) · [Skill](SKILL.md) · [API](references/api.md)
+[English](README.md) · [Agent Skill](SKILL.md) · [API](references/api.md) · [常见问题](docs/troubleshooting.md)
 
-## 能力
+## 功能
 
-- 读取 UI 元素，按需截图，按文字、描述或资源 ID 定位。
-- 点击、英文输入、滑动、按键、启动应用。
-- 检查锁屏、过期观察、页面变化和重复操作。
-- 工作区保存连接配置及 `agent_helpers.py`，方便逐步补充可复用动作。
-- 同一电脑上的 runner 会互斥访问同一台手机。
-- 可选接入已经部署的手机后台语音服务。
+- 读取界面元素，按需截图。
+- 点击、滑动、输入 ASCII 文字、按键和启动应用。
+- 拒绝过期观察、重复操作和锁屏状态下的输入。
+- 在 `agent_helpers.py` 工作区中保存可复用的应用操作。
 
-目前是实验版本。普通 UI 操作只需 Python 3.10+、ADB 和已授权 USB 调试的手机，
-不需要安装新的手机辅助程序。它不自带大模型、MCP 服务或持续语音通话。
+普通界面操作只需 Python 标准库和 ADB，无需在手机上安装额外辅助应用。
 
-## 使用
+## 快速开始
 
-在项目根目录执行，替换 ADB 路径和设备序列号：
+准备 Python 3.10+ 和 [Android Platform Tools](https://developer.android.com/tools/releases/platform-tools)，连接手机、授权 USB 调试并解锁。
 
-```console
+```sh
+git clone https://github.com/AndrewDzzz/andriod-harness.git
+cd andriod-harness
 python scripts/android_harness.py devices --adb /absolute/path/to/adb
 python android-harness.py --workspace work/my-phone --init --adb /absolute/path/to/adb --serial YOUR_DEVICE_SERIAL
-python android-harness.py --workspace work/my-phone --doctor
 python android-harness.py --workspace work/my-phone --file examples/inspect.py
 ```
 
-Windows 使用 `adb.exe` 的绝对路径。手机先解锁；已有工作区可以继续使用。
-查看截图可执行 `examples/screenshot.py`。完成后运行 `--forget`，只删除本工作区最近一次的观察数据。
+替换为你的 ADB 路径和设备序列号。Windows 使用 `adb.exe` 的完整路径。最后一条命令输出当前应用和界面元素，默认不截图。
 
-`screen_info()`、`find()`、`tap()`、`type_text()`、`swipe()`、`open_app()` 等函数会预先载入。
-修改工作区中的 `agent_helpers.py` 即可增加应用专用流程，下次执行时加载。
-不要将手机页面上的文字当成 Python 代码执行。
+后续复用同一工作区：
 
-## 限制与验证
+```sh
+python android-harness.py --workspace work/my-phone --file examples/screenshot.py
+python android-harness.py --workspace work/my-phone --forget
+```
 
-- 当前直接输入支持英文 ASCII，不支持中文或百分号。
-- 不是无痕或反检测工具；不清理系统日志、浏览历史和用户文件。
-- 默认不录屏、不截图，没有遥测客户端。
-- 锁屏需要用户解锁。操作超时后先检查结果，不自动重复点击。
-- 主机 Python 具有正常用户权限，不是安全沙箱。
+第一条命令截图并输出图片路径；第二条删除最近一次观察和截图，保留配置及 helper。
 
-21 项本地测试已通过。真机验证过截图、锁屏检查、输入 `ni hao`、网页滑动、
-应用启动及 Play 商店按钮操作。配置了跨平台 CI，但尚未在 GitHub 运行。
-完整范围见 [验证记录](docs/validation.md)。
+## 配合代理使用
 
-## 项目状态
+[SKILL.md](SKILL.md) 提供代理操作流程。Runner 预载 `screen_info()`、`find()`、`tap()`、`swipe()` 等函数。应用专用流程写入工作区的 `agent_helpers.py`，详见[扩展指南](references/extending.md)。
 
-这是可上传 GitHub 的源码项目，尚未发布到远程仓库。
-已移除具体设备序列号、个人绝对路径、截图、令牌和模型文件。
-开源许可证尚未选择，发布前由项目所有者决定。
+## 状态与限制
+
+目前为实验版本。直接输入支持不含 `%` 的可打印 ASCII，部分自绘界面可能无法识别。主机 Python 执行可信代码，不是沙箱；每次操作后都应验证结果。
+
+[隐私说明](references/privacy.md) · [验证范围](docs/validation.md) · [参与贡献](CONTRIBUTING.md) · [可选语音服务](references/local-voice.md)
+
+运行测试：`python scripts/test_harness.py`。
+
+设计参考 [browser-harness](https://github.com/browser-use/browser-harness)。暂未选择再分发许可证。

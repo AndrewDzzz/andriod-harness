@@ -1,155 +1,51 @@
 # Android Harness
 
-A small, agent-editable Android control harness: observe a connected phone, choose
-an action, then verify the result. Inspired by the stable-core and editable-helper
-design of [browser-harness](https://github.com/browser-use/browser-harness).
+Control an Android phone from Python through ADB. Built for coding agents: **observe → act → verify**.
 
-[中文说明](README.zh-CN.md) · [Agent skill](SKILL.md) · [API](references/api.md) · [Validation](docs/validation.md)
+[中文](README.zh-CN.md) · [Agent skill](SKILL.md) · [API](references/api.md) · [Troubleshooting](docs/troubleshooting.md)
 
-**Status: experimental.** Built and tested on a Windows host with an Android 14
-phone. Runtime dependencies are Python and Android Platform Tools; no Python
-packages or additional on-device automation app are required for UI control.
+## Features
 
-## What it does
+- Read UI elements and take screenshots on request.
+- Tap, swipe, type ASCII text, press keys and launch apps.
+- Reject stale observations, repeated actions and input on locked phones.
+- Keep reusable app routines in an editable `agent_helpers.py` workspace.
 
-- Reads the UI hierarchy and optionally captures a screenshot.
-- Resolves elements by exact text, description, or resource ID.
-- Performs guarded taps, ASCII typing, swipes, key presses and app launches.
-- Rejects expired or consumed observations, changed UI, and locked phones.
-- Preloads Python helpers and preserves an editable `agent_helpers.py` workspace.
-- Serializes runner commands targeting the same phone on the same host.
-- Supports an optional, already configured background voice service.
-
-It does not include an LLM, autonomous task planner, MCP server, cloud service,
-phone-side installer, Unicode input method, recording system, or anti-detection
-feature. Your coding agent supplies the planning and can improve its host helpers.
+UI control uses only Python's standard library and ADB. No extra phone app is required.
 
 ## Quick start
 
-Requirements: Python 3.10+, [Android Platform Tools](https://developer.android.com/tools/releases/platform-tools),
-USB debugging enabled and authorized on your own phone. Unlock the phone before
-UI actions. Extract or clone this repository and run commands from its root.
+Install Python 3.10+ and [Android Platform Tools](https://developer.android.com/tools/releases/platform-tools). Connect your phone, authorize USB debugging and unlock it.
 
-```console
-python android-harness.py --help
+```sh
+git clone https://github.com/AndrewDzzz/andriod-harness.git
+cd andriod-harness
 python scripts/android_harness.py devices --adb /absolute/path/to/adb
 python android-harness.py --workspace work/my-phone --init --adb /absolute/path/to/adb --serial YOUR_DEVICE_SERIAL
-python android-harness.py --workspace work/my-phone --doctor
 python android-harness.py --workspace work/my-phone --file examples/inspect.py
 ```
 
-On Windows use the full path to `adb.exe`; quote paths containing spaces. Reuse the
-same workspace instead of initializing one for each command. `--init` preserves
-existing helpers and rejects an attempt to switch an existing workspace's device.
+Replace the ADB path and device serial with your own. On Windows, use the full path to `adb.exe`. The last command prints the current app and UI elements without taking a screenshot.
 
-The runner loads trusted Python from `--file` or stdin with these helpers ready:
+Reuse the same workspace for later commands:
 
-```python
-screen = screen_info()                # UI structure; no screenshot by default
-print(screen)
-
-# After reviewing a fresh observation and choosing a real target:
-matches = find(resource_id="com.example:id/the_observed_button")
-if len(matches) != 1:
-    raise RuntimeError("Missing or ambiguous target")
-tap(matches[0])                       # Handle carries its observation token
-print(screen_info())                  # Verify the actual result
-```
-
-The package ID above is a placeholder, not a runnable demo target. To view layout,
-use `screen_info(screenshot=True)` and open the returned local image. Coordinate
-taps and swipes require this explicit screenshot observation.
-
-PowerShell stdin example:
-
-```powershell
-@'
-print(device_info())
-print(screen_info())
-'@ | python android-harness.py --workspace work/my-phone
-```
-
-Bash stdin example:
-
-```bash
-python android-harness.py --workspace work/my-phone <<'PY'
-print(device_info())
-print(screen_info())
-PY
-```
-
-Use `AH_AGENT_WORKSPACE` instead of `--workspace` when convenient. Python variables
-do not persist between invocations; workspace configuration, latest observation,
-and helper source do.
-
-## Extend it like browser-harness
-
-```text
-Stable core             scripts/android_harness.py
-Preloaded helpers       scripts/helpers.py
-Host runner             scripts/run.py
-Agent-edited routines   work/my-phone/agent_helpers.py
-Optional app notes      work/my-phone/app-skills/<package>/*.md
-Latest observation      work/my-phone/session/
-```
-
-Add reusable app-specific routines to the workspace helper file. Changes load on
-the next invocation. Test them against the observed UI and retain regression tests
-for real failures. Set `AH_APP_SKILLS=1` to discover optional local per-app notes.
-See [extension guidance](references/extending.md).
-
-The harness never automatically rewrites code. "Repair" means the coding agent
-inspects a failure, edits its helper, tests it, and verifies the result. Stable core
-guards should not be disabled to force an operation through.
-
-## Use as a skill
-
-The repository root is a self-contained skill directory: `SKILL.md`, `scripts/`,
-`references/` and `assets/`. Copy this source directory to your agent's supported
-skills location, excluding `.git/`, `work/`, caches and local configuration. The
-skill points to `scripts/run.py`, so it works independently of this root launcher.
-
-## Privacy and limitations
-
-Default inspection stores only the latest parsed UI state. Screenshots are opt-in;
-a later structure-only observation removes the earlier screenshot. After verification:
-
-```console
+```sh
+python android-harness.py --workspace work/my-phone --file examples/screenshot.py
 python android-harness.py --workspace work/my-phone --forget
 ```
 
-This deletes only the last `state.json` and `screen.png`, retaining configuration
-and helpers. It does not clear Android logs, browser history, user files, tool output
-or chat records. It does not make automation undetectable.
+The first command captures a screenshot and prints its path. The second removes the latest observation and screenshot, keeping configuration and helpers.
 
-- Text entry currently supports printable ASCII without percent signs.
-- Accessibility dumps can omit custom-drawn or WebView content.
-- Strict stale-UI checks can reject dynamic screens. Re-observe; do not blindly retry.
-- The user and external ADB tools can still race with the runner.
-- Trusted Python runs with normal host permissions; this is not a code sandbox.
-- Optional voice requires a separately deployed authenticated service; see
-  [voice adapter protocol](references/local-voice.md).
-- A dispatch success is not evidence that a business action completed. Verify it.
+## Use with an agent
 
-Read [privacy details](references/privacy.md) and [troubleshooting](docs/troubleshooting.md).
+See [SKILL.md](SKILL.md) for the agent workflow. The runner preloads helpers such as `screen_info()`, `find()`, `tap()` and `swipe()`. Add app-specific routines to the workspace's `agent_helpers.py`; see [extending the harness](references/extending.md).
 
-## Development
+## Status and limits
 
-```console
-python scripts/test_harness.py
-python -m compileall -q scripts android-harness.py examples
-```
+Experimental. Text input supports printable ASCII without `%`; some custom UI elements may be absent from observations. Host Python is trusted code, not a sandbox. Verify the result after every action.
 
-Tests use fixtures and subprocesses, not a physical phone. The GitHub Actions
-workflow is configured for Windows, Linux and macOS on Python 3.10 and 3.13;
-remote CI has not run until the repository is uploaded. See [validation](docs/validation.md)
-for the narrower set of platforms and device actions actually verified.
+[Privacy](references/privacy.md) · [Validation](docs/validation.md) · [Contributing](CONTRIBUTING.md) · [Optional voice service](references/local-voice.md)
 
-## Attribution and license status
+Run the tests with `python scripts/test_harness.py`.
 
-The architecture is inspired by browser-harness, reviewed at commit
-`dbf0e4f3a37ebc31aaeaf9d378ab1760b5776c15`. This implementation was independently
-written and does not include its source or depend on its runtime.
-
-No redistribution license has been selected for this project yet. The project
-owner should choose one before presenting it as an open-source release.
+Inspired by [browser-harness](https://github.com/browser-use/browser-harness). No redistribution license has been selected yet.
